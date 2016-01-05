@@ -47,18 +47,26 @@ func GetDashboard(c *middleware.Context) {
 		return
 	}
 
+	authorEmail, err := GetUserEmail(c, query.Result.AuthorId)
+	if err != nil {
+		c.JsonApiErr(500, "Error while retrieving dashboard author", err)
+		return
+	}
+
 	dash := query.Result
 	dto := dtos.DashboardFullWithMeta{
 		Dashboard: dash.Data,
 		Meta: dtos.DashboardMeta{
-			IsStarred: isStarred,
-			Slug:      slug,
-			Type:      m.DashTypeDB,
-			CanStar:   c.IsSignedIn,
-			CanSave:   c.OrgRole == m.ROLE_ADMIN || c.OrgRole == m.ROLE_EDITOR,
-			CanEdit:   canEditDashboard(c.OrgRole),
-			Created:   dash.Created,
-			Updated:   dash.Updated,
+			IsStarred:   isStarred,
+			Slug:        slug,
+			Type:        m.DashTypeDB,
+			CanStar:     c.IsSignedIn,
+			CanSave:     c.OrgRole == m.ROLE_ADMIN || c.OrgRole == m.ROLE_EDITOR,
+			CanEdit:     canEditDashboard(c.OrgRole),
+			Created:     dash.Created,
+			Updated:     dash.Updated,
+			AuthorId:    dash.AuthorId,
+			AuthorEmail: authorEmail,
 		},
 	}
 
@@ -99,6 +107,9 @@ func PostDashboard(c *middleware.Context, cmd m.SaveDashboardCommand) {
 			c.JsonApiErr(403, "Quota reached", nil)
 			return
 		}
+
+		// Set the author of the dashboard at creation time
+		cmd.AuthorId, cmd.AuthorEmail = SetDashboardAuthor(c, cmd)
 	}
 
 	err := bus.Dispatch(&cmd)
@@ -122,6 +133,17 @@ func PostDashboard(c *middleware.Context, cmd m.SaveDashboardCommand) {
 	metrics.M_Api_Dashboard_Post.Inc(1)
 
 	c.JSON(200, util.DynMap{"status": "success", "slug": cmd.Result.Slug, "version": cmd.Result.Version})
+}
+
+func SetDashboardAuthor(c *middleware.Context, cmd m.SaveDashboardCommand) (int64, string) {
+	if c.UserId == 0 {
+		cmd.AuthorEmail = "Anonymous"
+	} else {
+		cmd.AuthorEmail = c.Email
+	}
+	cmd.AuthorId = c.UserId
+
+	return cmd.AuthorId, cmd.AuthorEmail
 }
 
 func canEditDashboard(role m.RoleType) bool {

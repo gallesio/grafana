@@ -27,6 +27,20 @@ func getUserUserProfile(userId int64) Response {
 	return Json(200, query.Result)
 }
 
+// Get user email
+func GetUserEmail(c *middleware.Context, userId int64) (string, error) {
+	query := m.GetUserProfileQuery{UserId: userId}
+	if err := bus.Dispatch(&query); err != nil {
+		if userId == 0 {
+			return "Anonymous", nil
+		} else {
+			return "", err
+		}
+	}
+
+	return query.Result.Email, nil
+}
+
 // POST /api/user
 func UpdateSignedInUser(c *middleware.Context, cmd m.UpdateUserCommand) Response {
 	cmd.UserId = c.UserId

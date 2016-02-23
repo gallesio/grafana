@@ -32,6 +32,7 @@ function (angular, $, config) {
       $scope.registerWindowResizeEvent();
       $scope.onAppEvent('show-json-editor', $scope.showJsonEditor);
       $scope.setupDashboard(dashboard);
+      $scope.restrictEditRights(dashboard);
     };
 
     $scope.setupDashboard = function(data) {
@@ -67,6 +68,16 @@ function (angular, $, config) {
         $scope.appEvent("alert-error", ['Dashboard init failed', 'Template variables could not be initialized: ' + err.message]);
       });
     };
+
+    // NOTE FOR JM: dirty solution is to find a workaround to change what has been changed in service when editable check box is checked
+    // $scope.restrictEditRights = function(dashboard) {
+    //   if (contextSrv.user.id === dashboard.meta.authorId) {
+    //     dashboard.meta.canEdit = true;
+    //     dashboard.meta.canSave = true;
+    //     dashboard.meta.canDelete = true;
+    //     dashboard.meta.hideControls = false;
+    //   } 
+    // };
 
     $scope.updateTopNavPartial = function() {
       if ($scope.dashboard.meta.isSnapshot) {

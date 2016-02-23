@@ -53,6 +53,8 @@ function (angular, $, _, moment) {
       meta.canStar = meta.canStar !== false;
       meta.canEdit = meta.canEdit !== false;
 
+      // NOTE FOR JM: this is where the editable logic is applied
+      // when check box editable is checked
       if (!this.editable) {
         meta.canEdit = false;
         meta.canDelete = false;

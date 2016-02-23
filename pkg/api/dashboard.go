@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path"
 	"strings"
@@ -27,6 +28,14 @@ func isDasboardStarredByUser(c *middleware.Context, dashId int64) (bool, error) 
 	}
 
 	return query.Result, nil
+}
+
+func isUserAuthorOfCurrentDashboard(c *middleware.Context, authorId int64) bool {
+	if c.UserId == authorId {
+		return true
+	} else {
+		return false
+	}
 }
 
 func GetDashboard(c *middleware.Context) {
@@ -67,8 +76,9 @@ func GetDashboard(c *middleware.Context) {
 			Slug:        slug,
 			Type:        m.DashTypeDB,
 			CanStar:     c.IsSignedIn,
-			CanSave:     c.OrgRole == m.ROLE_ADMIN || c.OrgRole == m.ROLE_EDITOR,
-			CanEdit:     canEditDashboard(c.OrgRole),
+			CanSave:     c.OrgRole == m.ROLE_ADMIN || c.OrgRole == m.ROLE_EDITOR && isUserAuthorOfCurrentDashboard(c, dash.AuthorId),
+			CanDelete:   c.OrgRole == m.ROLE_ADMIN || c.OrgRole == m.ROLE_EDITOR && isUserAuthorOfCurrentDashboard(c, dash.AuthorId),
+			CanEdit:     canEditDashboard(c.OrgRole) && isUserAuthorOfCurrentDashboard(c, dash.AuthorId),
 			Created:     dash.Created,
 			Updated:     dash.Updated,
 			AuthorId:    dash.AuthorId,
@@ -76,6 +86,11 @@ func GetDashboard(c *middleware.Context) {
 			AuthorEmail: authorEmail,
 		},
 	}
+
+	fmt.Printf("Is Author of Current Dashboard ? %t\n", isUserAuthorOfCurrentDashboard(c, dash.AuthorId))
+	fmt.Printf("Can Edit (meta) ? %t\n", dto.Meta.CanEdit)
+	fmt.Printf("Can Delete (meta) ? %t\n", dto.Meta.CanDelete)
+	fmt.Printf("Can Save (meta) ? %t\n", dto.Meta.CanSave)
 
 	c.JSON(200, dto)
 }
@@ -171,7 +186,7 @@ func GetHomeDashboard(c *middleware.Context) {
 
 	dash := dtos.DashboardFullWithMeta{}
 	dash.Meta.IsHome = true
-	dash.Meta.CanEdit = canEditDashboard(c.OrgRole)
+	dash.Meta.CanEdit = canEditDashboard(c.OrgRole) && isUserAuthorOfCurrentDashboard(c, dash.Meta.AuthorId)
 	jsonParser := json.NewDecoder(file)
 	if err := jsonParser.Decode(&dash.Dashboard); err != nil {
 		c.JsonApiErr(500, "Failed to load home dashboard", err)
@@ -192,7 +207,7 @@ func GetDashboardFromJsonFile(c *middleware.Context) {
 
 	dash := dtos.DashboardFullWithMeta{Dashboard: dashboard.Data}
 	dash.Meta.Type = m.DashTypeJson
-	dash.Meta.CanEdit = canEditDashboard(c.OrgRole)
+	dash.Meta.CanEdit = canEditDashboard(c.OrgRole) && isUserAuthorOfCurrentDashboard(c, dash.Meta.AuthorId)
 
 	c.JSON(200, &dash)
 }
